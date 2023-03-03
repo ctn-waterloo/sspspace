@@ -26,7 +26,7 @@ class SSP(np.ndarray):
         return obj
 
     def __init__(cls, *args, **kwargs):
-        print(f'In __init__ with class {cls.__class__}')
+        pass
 
     def __array_finalize__(self, obj):
         if obj is None: return

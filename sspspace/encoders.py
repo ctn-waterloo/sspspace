@@ -27,7 +27,7 @@ class SSPEncoder:
         self.length_scale = length_scale * np.ones((self.domain_dim,1))
         
         self.phase_matrix = phase_matrix
-            
+
     def update_lengthscale(self, scale):
         '''
         Changes the lengthscale being used in the encoding.

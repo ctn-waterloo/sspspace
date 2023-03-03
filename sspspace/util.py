@@ -1,5 +1,15 @@
 import numpy as np
 
+from scipy.stats import qmc
+
+def sample_domain(bounds, num_samples):
+    sampler = qmc.Sobol(d=bounds.shape[0]) 
+    lbounds = bounds[:,0]
+    ubounds = bounds[:,1]
+    u_sample_points = sampler.random(num_samples)
+    sample_points = qmc.scale(u_sample_points, lbounds, ubounds)
+    return sample_points
+
 def make_good_unitary(dim, eps=1e-3, rng=np.random):
     a = rng.rand((dim - 1) // 2)
     sign = rng.choice((-1, +1), len(a))

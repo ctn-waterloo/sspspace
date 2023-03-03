@@ -5,7 +5,7 @@ from .ssp import SSP
 from .util import make_good_unitary, conjugate_symmetry
 
 
-class SSPSpace:
+class SSPEncoder:
     def __init__(self, phase_matrix:np.ndarray, length_scale:Optional[Union[int, np.ndarray]]=1):
         '''
         Represents a domain using spatial semantic pointers.
@@ -112,7 +112,7 @@ def RandomSSPSpace(domain_dim:int, ssp_dim:int,
 
     phase_matrix = (-1.j*np.log(np.fft.fft(axis_matrix,axis=0))).real
     
-    return SSPSpace(phase_matrix, length_scale=length_scale)
+    return SSPEncoder(phase_matrix, length_scale=length_scale)
 
 
 def HexagonalSSPSpace(domain_dim:int, 
@@ -155,5 +155,5 @@ def HexagonalSSPSpace(domain_dim:int,
         
     phase_matrix = conjugate_symmetry(phases_scaled_rotated)
 
-    return SSPSpace(phases_scaled_rotated, length_scale=length_scale)
+    return SSPEncoder(phases_scaled_rotated, length_scale=length_scale)
 

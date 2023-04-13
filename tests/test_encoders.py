@@ -1,7 +1,7 @@
 import sys
 sys.path.append('../')
 
-from sspspace import SSP, SSPSpace, RandomSSPSpace, HexagonalSSPSpace
+from sspspace import SSP, SSPEncoder, RandomSSPSpace, HexagonalSSPSpace
 import numpy as np
 
 

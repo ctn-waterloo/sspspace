@@ -76,3 +76,6 @@ class SSP(np.ndarray):
         s = np.zeros(self.shape[1])
         s[0] = 1
         return s
+
+    def unitary(self):
+        return make_unitary(self)

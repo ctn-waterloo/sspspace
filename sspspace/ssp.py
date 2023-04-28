@@ -35,7 +35,7 @@ def make_unitary_fourier(fssp):
     Ae^{i\theta}, the coefficient A=1. This is important to make sure that 
     iterative binding doesn't cause the vector length to change.
     '''
-    fssp = fssp/np.maximum(np.sqrt(fssp.real**2 + fssp.imag**2), 1e-8, axis=1)
+    fssp = fssp/np.maximum(np.sqrt(fssp.real**2 + fssp.imag**2), 1e-8)
     return fssp
 
 def fourier_log(ssp):

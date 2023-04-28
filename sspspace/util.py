@@ -2,11 +2,12 @@ import numpy as np
 
 from scipy.stats import qmc
 
-def sample_domain(bounds, num_samples):
-    sampler = qmc.Sobol(d=bounds.shape[0]) 
+def sample_domain(bounds, num_samples, scramble=True):
+    sampler = qmc.Sobol(d=bounds.shape[0], scramble=scramble) 
     lbounds = bounds[:,0]
     ubounds = bounds[:,1]
-    u_sample_points = sampler.random(num_samples)
+    m = int(np.log(num_samples) / np.log(2))
+    u_sample_points = sampler.random_base2(m)
     sample_points = qmc.scale(u_sample_points, lbounds, ubounds)
     return sample_points
 

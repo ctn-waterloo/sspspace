@@ -27,6 +27,17 @@ class SSPDecoder:
         return solns
     ### end decode
 
+class SSPSimilarityDecoder: 
+    def __init__(self, sim_xs, sim_ssps, encoder):
+        self.sim_xs = sim_xs
+        self.sim_ssps = sim_ssps
+        self.encoder = encoder
+
+    def decode(self, ssps):
+        sims = self.sim_ssps | ssps
+        return self.sim_xs[np.argmax(sims, axis=0),:]
+
+
 def train_decoder_net_sk(encoder, bounds, n_training_pts=200000,
                       sample_points=None,
                       hidden_units = [8],

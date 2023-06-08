@@ -12,8 +12,7 @@ class SSPDecoder:
 
     def decode(self, ssps):
 
-        x0 = self.decoder_network.predict(ssps)
-
+        x0 = self.decoder_network.predict(ssps).reshape((-1,self.encoder.domain_dim))
         solns = np.zeros(x0.shape)
         for i in range(x0.shape[0]):
             def min_func(x,target=ssps[i,:]):

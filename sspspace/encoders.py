@@ -5,6 +5,20 @@ from .ssp import SSP
 from .util import make_good_unitary, conjugate_symmetry
 
 
+class DiscreteSPSpace:
+    def __init__(self, keys, ssp_dim):
+        self.keys = keys
+        self.map = SSP([make_good_unitary(ssp_dim) for k in self.keys])
+
+    def encode(self, v):
+        if v not in self.keys:
+            raise RuntimeWarning(f'Key {v} is not in the dictionary')
+        return self.map[self.keys.index(v),:].reshape((1,-1))
+
+    def decode(self, ssp):
+        return self.keys[np.argmax(self.map | ssp)]
+
+        
 class SSPEncoder:
     def __init__(self, phase_matrix:np.ndarray, length_scale:Optional[Union[int, np.ndarray]]=1):
         '''

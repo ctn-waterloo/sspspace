@@ -127,3 +127,49 @@ def train_decoder_net_tf(encoder, bounds, n_training_pts=200000,
                         validation_split = 0.1)
         
     return SSPDecoder(bounds, model, encoder), history
+
+import nengo
+import scipy.special
+
+class NEFDecoder(object):
+
+    def __init__(self,ssp_dim = 2048, n_neurons = 10000):
+        
+        self.model = nengo.Network()
+        with self.model:
+            
+            import scipy.special
+            def sparsity_to_x_intercept(d, p):
+                sign = 1
+                if p > 0.5:
+                    p = 1.0 - p
+                    sign = -1
+                return sign * np.sqrt(1-scipy.special.betaincinv((d-1)/2.0, 0.5, 2*p))
+
+            self.ens = nengo.Ensemble(n_neurons = n_neurons, 
+                                 dimensions = ssp_dim,
+                                 intercepts = nengo.dists.Choice([sparsity_to_x_intercept(ssp_dim,0.1)]),
+                                )
+        self.sim = nengo.Simulator(self.model)
+        
+    def train(self,train_phis,train_xs):
+        solver = nengo.solvers.LstsqL2()
+        _, A_train = nengo.utils.ensemble.tuning_curves(self.ens, self.sim, inputs = train_phis)
+        self.decoders, _ = solver(A_train, train_xs)
+    
+    def predict(self,phis):
+        _,A = nengo.utils.ensemble.tuning_curves(self.ens, self.sim, inputs = phis)
+        xs_decoded = A @ self.decoders
+        
+        return xs_decoded
+
+def train_decoder_nef(encoder, bounds, 
+                        n_training_pts = 10000,
+                        n_neurons = 10000):
+    train_xs = sample_domain(bounds, n_training_pts)
+    train_phis = encoder.encode(train_xs)
+
+    model = NEFDecoder(ssp_dim = encoder.ssp_dim, n_neurons = n_neurons)
+    model.train(train_phis,train_xs)
+    
+    return SSPDecoder(bounds,model,encoder), {}

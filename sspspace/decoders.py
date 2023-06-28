@@ -129,7 +129,6 @@ def train_decoder_net_tf(encoder, bounds, n_training_pts=200000,
     return SSPDecoder(bounds, model, encoder), history
 
 import nengo
-import scipy.special
 
 class NEFDecoder(object):
 
@@ -138,17 +137,10 @@ class NEFDecoder(object):
         self.model = nengo.Network()
         with self.model:
             
-            import scipy.special
-            def sparsity_to_x_intercept(d, p):
-                sign = 1
-                if p > 0.5:
-                    p = 1.0 - p
-                    sign = -1
-                return sign * np.sqrt(1-scipy.special.betaincinv((d-1)/2.0, 0.5, 2*p))
-
+            encoders = nengo.dists.UniformHypersphere(surface=True).sample(n_neurons, ssp_dim)
             self.ens = nengo.Ensemble(n_neurons = n_neurons, 
                                  dimensions = ssp_dim,
-                                 intercepts = nengo.dists.Choice([sparsity_to_x_intercept(ssp_dim,0.1)]),
+                                 encoders = encoders,
                                 )
         self.sim = nengo.Simulator(self.model)
         

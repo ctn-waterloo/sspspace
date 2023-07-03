@@ -7,6 +7,7 @@ from .util import make_good_unitary, conjugate_symmetry
 
 class DiscreteSPSpace:
     def __init__(self, keys, ssp_dim):
+        self.ssp_dim = ssp_dim
         self.keys = keys
         self.map = SSP([make_good_unitary(ssp_dim) for k in self.keys])
 

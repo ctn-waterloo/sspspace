@@ -12,13 +12,14 @@ def k_to_vector(K):
 
 class DiscreteSPSpace:
     def __init__(self, keys, ssp_dim):
-        self.ssp_dim = ssp_dim
+        self.ssp_dim = ssp_dim + 2
         self.keys = keys
 #         self.map = SSP([make_good_unitary(ssp_dim) for k in self.keys])
 
-        self.map = SSP(np.zeros((len(self.keys), self.ssp_dim+2)))
+        self.map = SSP(np.zeros((len(self.keys), self.ssp_dim)))
 
-        phase0 = np.random.uniform(low=-np.pi, high=np.pi, size=(1, ssp_dim//2))
+        phase0 = np.random.uniform(low=-np.pi, high=np.pi, 
+                                   size=(1, (self.ssp_dim-2)//2))
 
         self.map[0,:] = k_to_vector(phase0)
         
@@ -33,11 +34,11 @@ class DiscreteSPSpace:
         for i in range(1,len(self.keys)):
             x0 = np.random.uniform(low=-np.pi, 
                                    high=np.pi, 
-                                   size=(self.ssp_dim // 2,))
+                                   size=((self.ssp_dim -2)// 2,))
             greedy_soln = minimize(greedy_min_func, x0, 
                                    args=(self.map[:i,:]), 
                                    method='L-BFGS-B')
-            self.map[i,:] = k_to_vector(greedy_soln.x.reshape((1,self.ssp_dim//2)))
+            self.map[i,:] = k_to_vector(greedy_soln.x.reshape((1,(self.ssp_dim-2)//2)))
     ### end __init__
 
 

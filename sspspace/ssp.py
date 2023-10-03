@@ -67,11 +67,10 @@ class SSP(np.ndarray):
         return invert(self)
 
     def __mul__(self, other):
-#         if isinstance(other, float):
-        if not isinstance(other, SSP):
-            return np.multiply(self, other)
-        else:
+        if hasattr(other, 'shape'):
             return bind(self, other)
+        else:
+            return np.multiply(self, other)
 
     def __or__(self, other):
         return sim(self, other)

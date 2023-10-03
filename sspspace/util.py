@@ -40,6 +40,15 @@ def conjugate_symmetry(K):
     F[-d:,:] = np.flip(np.conj(F[0:d,:]),axis=0)
     return F
 
+def vecs_from_phases(K):
+    d = K.shape[0]
+    F = np.ones((d*2+2, K.shape[1]), dtype="complex")
+    F[1:d+1,:] = np.exp(1.j*K)
+    F[-d:,:] = np.flip(np.conj(F[1:d+1,:]),axis=0)
+    F[0,:] = 1
+    F[d+1,:] = 1
+    return F
+
 
 def similarity_plot(self,ssp,n_grid=100,plot_type='heatmap',ax=None,**kwargs):
     import matplotlib.pyplot as plt

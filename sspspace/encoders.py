@@ -2,9 +2,55 @@ from typing import Dict, List, Optional, Sequence, SupportsFloat, Tuple, Type, U
 
 import numpy as np
 from .ssp import SSP
-from .util import make_good_unitary, conjugate_symmetry
+from .util import make_good_unitary, conjugate_symmetry, vecs_from_phases
+
+def k_to_vector(K):
+    fs = vecs_from_phases(K.T).T
+    phis = np.fft.ifft(fs, axis=1).real
+    return phis
 
 
+class DiscreteSPSpace:
+    def __init__(self, keys, ssp_dim):
+        self.ssp_dim = ssp_dim + 2
+        self.keys = keys
+#         self.map = SSP([make_good_unitary(ssp_dim) for k in self.keys])
+
+        self.map = SSP(np.zeros((len(self.keys), self.ssp_dim)))
+
+        phase0 = np.random.uniform(low=-np.pi, high=np.pi, 
+                                   size=(1, (self.ssp_dim-2)//2))
+
+        self.map[0,:] = k_to_vector(phase0)
+        
+        def greedy_min_func(x, vecs):
+            K = x.reshape((1,vecs.shape[1]//2 - 1))
+            phi = k_to_vector(K)    
+            sims = np.einsum('nd,md->nm', phi, vecs)
+            return np.linalg.norm(sims)
+
+        from scipy.optimize import minimize
+       
+        for i in range(1,len(self.keys)):
+            x0 = np.random.uniform(low=-np.pi, 
+                                   high=np.pi, 
+                                   size=((self.ssp_dim -2)// 2,))
+            greedy_soln = minimize(greedy_min_func, x0, 
+                                   args=(self.map[:i,:]), 
+                                   method='L-BFGS-B')
+            self.map[i,:] = k_to_vector(greedy_soln.x.reshape((1,(self.ssp_dim-2)//2)))
+    ### end __init__
+
+
+    def encode(self, v):
+        if v not in self.keys:
+            raise RuntimeWarning(f'Key {v} is not in the dictionary')
+        return self.map[self.keys.index(v),:].reshape((1,-1))
+
+    def decode(self, ssp):
+        return self.keys[np.argmax(self.map | ssp)]
+
+        
 class SSPEncoder:
     def __init__(self, phase_matrix:np.ndarray, length_scale:Optional[Union[int, np.ndarray]]=1):
         '''

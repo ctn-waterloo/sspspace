@@ -32,25 +32,29 @@ class SSPDecoder:
     ### end decode
 
 class SSPSimilarityDecoder: 
-    def __init__(self, sim_xs, sim_ssps, encoder):
+    def __init__(self, sim_xs, sim_ssps, encoder, optim=True):
         self.sim_xs = sim_xs
         self.sim_ssps = sim_ssps
         self.encoder = encoder
+        self.optim = optim
 
     def decode(self, ssps):
         sims = self.sim_ssps | ssps
         
         x0 = self.sim_xs[np.argmax(sims, axis=0),:]
-        solns = np.zeros(x0.shape)
-        for i in range(x0.shape[0]):
-            def min_func(x,target=ssps[i,:]):
-                x_ssp = self.encoder.encode(np.atleast_2d(x))
-                return -np.inner(x_ssp, target).flatten()
-            soln = minimize(min_func, x0[i,:], 
-                        method='L-BFGS-B',
-#                         bounds=self.domain_bounds,
-            )
-            solns[i,:] = soln.x
+        if self.optim:
+            solns = np.zeros(x0.shape)
+            for i in range(x0.shape[0]):
+                def min_func(x,target=ssps[i,:]):
+                    x_ssp = self.encoder.encode(np.atleast_2d(x))
+                    return -np.inner(x_ssp, target).flatten()
+                soln = minimize(min_func, x0[i,:], 
+                            method='L-BFGS-B',
+    #                         bounds=self.domain_bounds,
+                )
+                solns[i,:] = soln.x
+        else:
+            solns = np.copy(x0)
     
         return solns
 

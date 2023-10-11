@@ -56,7 +56,6 @@ class SSPSimilarityDecoder:
             return solns
         else:
             return x0
->>>>>>> 7ed4038bc99e714cdb9740fbf2657923e71a903d
 
 
 def train_decoder_net_sk(encoder, bounds, n_training_pts = 200000, 

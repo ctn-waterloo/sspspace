@@ -1,9 +1,23 @@
 import sys
 sys.path.append('../')
 
-from sspspace import SSP, SSPEncoder, RandomSSPSpace, HexagonalSSPSpace
+from sspspace import SSP, SSPEncoder, RandomSSPSpace, RandomSSPSpaceVF, HexagonalSSPSpace
 import numpy as np
 
+
+def test_randomvf_encoding():
+    xs = np.linspace(-10,10,1000).reshape((-1,1))
+    rand_encoder = RandomSSPSpaceVF(domain_dim=1,ssp_dim=1024*2)
+
+    query_xs_ssp = rand_encoder.encode(xs)
+    origin_ssp = rand_encoder.encode([[0]])
+
+    sims = query_xs_ssp | origin_ssp
+    true_sims = np.sinc(xs)
+    
+    error = np.mean(np.power(sims-true_sims, 2))
+
+    assert error < 0.01, f'Expected error of 0.01, got {error}'
 
 def test_random_encoding():
     xs = np.linspace(-10,10,1000).reshape((-1,1))
@@ -33,6 +47,9 @@ def test_hexagonal_encoding():
 
     sims = query_xys_ssp | origin_ssp
     square_sims = sims.reshape((ys.shape[0], xs.shape[0]))
+
+# if __name__ == '__main__':
+#     test_randomvf_encoding()
 
     # TODO: Figure out numerical comparison
 

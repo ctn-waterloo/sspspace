@@ -32,6 +32,22 @@ def make_good_unitary(dim, eps=1e-3, rng=np.random, mul=1):
     assert np.allclose(np.linalg.norm(v), 1)
     return v
 
+def make_phase_matrix( ssp_dim, domain_dim, eps=1e-3, rng = np.random):
+    a = rng.rand( (ssp_dim - 1)//2, domain_dim )
+    sign = rng.choice((-1, +1), size=np.shape(a) )
+    phi = sign * np.pi * (eps + a * (1 - 2 * eps))
+
+    fv = np.zeros( (ssp_dim,domain_dim), dtype='complex64')
+    fv[0,:] = 1
+
+    fv[1:(ssp_dim + 1) // 2,:] = phi
+    fv[-1:ssp_dim // 2:-1,:] = -fv[1:(ssp_dim + 1) // 2,:]
+    
+    if ssp_dim % 2 == 0:
+        fv[ssp_dim // 2,:] = 1
+
+    return fv
+
 def conjugate_symmetry(K):
     d = K.shape[0]
     F = np.ones((d*2 + 1,K.shape[1]), dtype="complex")

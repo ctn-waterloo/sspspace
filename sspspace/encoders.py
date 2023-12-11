@@ -2,7 +2,7 @@ from typing import Dict, List, Optional, Sequence, SupportsFloat, Tuple, Type, U
 
 import numpy as np
 from .ssp import SSP
-from .util import make_good_unitary, conjugate_symmetry, vecs_from_phases
+from .util import make_good_unitary, conjugate_symmetry, vecs_from_phases, make_phase_matrix
 
 def k_to_vector(K):
     fs = vecs_from_phases(K.T).T
@@ -167,6 +167,15 @@ def RandomSSPSpace(domain_dim:int, ssp_dim:int,
 
     phase_matrix = (-1.j*np.log(np.fft.fft(axis_matrix,axis=0))).real
     
+    return SSPEncoder(phase_matrix, length_scale=length_scale)
+
+def RandomSSPSpaceVF(domain_dim:int, ssp_dim:int, 
+                    length_scale:Optional[Union[int, np.ndarray]]=1, 
+                    rng = np.random.default_rng() ):
+    
+    phase_matrix = make_phase_matrix(ssp_dim,domain_dim)
+
+    length_scale = np.array( length_scale )
     return SSPEncoder(phase_matrix, length_scale=length_scale)
 
 

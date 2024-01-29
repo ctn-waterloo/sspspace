@@ -34,8 +34,8 @@ def make_good_unitary(dim, eps=1e-3, rng=np.random, mul=1):
 
 def conjugate_symmetry(K):
     d = K.shape[0]
-    F = np.ones((d*2 + 1,K.shape[1]), dtype="complex")
-    F[0:d,:] = np.exp(1.j*K)
+    F = np.ones((d*2 + 1,K.shape[1]))#, dtype="complex")
+    F[0:d,:] = K
     F[-d:,:] = np.flip(np.conj(F[0:d,:]),axis=0)
     return F
 

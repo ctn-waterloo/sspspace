@@ -210,5 +210,5 @@ def HexagonalSSPSpace(domain_dim:int,
         
     phase_matrix = conjugate_symmetry(phases_scaled_rotated)
 
-    return SSPEncoder(phases_scaled_rotated, length_scale=length_scale)
+    return SSPEncoder(phase_matrix, length_scale=length_scale)
 

@@ -8,7 +8,7 @@ def bind(a, b):
     Binds (circular convolution) two sets of vectors together
     '''
 
-    assert a.shape[1] == b.shape[1], f'Expected SSPs to have same dimensionality.  Got {self.shape} * {b.shape}'
+    assert a.shape[1] == b.shape[1], f'Expected SSPs to have same dimensionality.  Got {a.shape} * {b.shape}'
     a = np.atleast_2d(a)
     b = np.atleast_2d(b)
     return np.fft.ifft(np.fft.fft(a, axis=1) * np.fft.fft(b,axis=1), axis=1).real.view(SSP)

@@ -11,35 +11,44 @@ def k_to_vector(K):
 
 
 class DiscreteSPSpace:
-    def __init__(self, keys, ssp_dim):
-        self.ssp_dim = ssp_dim + 2
+    def __init__(self, keys, ssp_dim, optimize=False, mul=1):
         self.keys = keys
-#         self.map = SSP([make_good_unitary(ssp_dim) for k in self.keys])
+        if not optimize:
+            self.ssp_dim = ssp_dim
+            self.map = SSP([make_good_unitary(ssp_dim, mul=1) for k in self.keys])
+        else:
+            self.ssp_dim = ssp_dim + 2
+            self.map = SSP(np.zeros((len(self.keys), self.ssp_dim)))
 
-        self.map = SSP(np.zeros((len(self.keys), self.ssp_dim)))
+            phase0 = np.random.uniform(low=-np.pi, high=np.pi, 
+                                       size=(1, (self.ssp_dim-2)//2))
 
-        phase0 = np.random.uniform(low=-np.pi, high=np.pi, 
-                                   size=(1, (self.ssp_dim-2)//2))
+            self.map[0,:] = k_to_vector(phase0)
+            
+            def greedy_min_func(x, vecs):
+                K = x.reshape((1,vecs.shape[1]//2 - 1))
+                phi = k_to_vector(K)    
+                sims = np.einsum('nd,md->nm', phi, vecs)
+                return np.linalg.norm(sims)
 
-        self.map[0,:] = k_to_vector(phase0)
-        
-        def greedy_min_func(x, vecs):
-            K = x.reshape((1,vecs.shape[1]//2 - 1))
-            phi = k_to_vector(K)    
-            sims = np.einsum('nd,md->nm', phi, vecs)
-            return np.linalg.norm(sims)
-
-        from scipy.optimize import minimize
-       
-        for i in range(1,len(self.keys)):
-            x0 = np.random.uniform(low=-np.pi, 
-                                   high=np.pi, 
-                                   size=((self.ssp_dim -2)// 2,))
-            greedy_soln = minimize(greedy_min_func, x0, 
-                                   args=(self.map[:i,:]), 
-                                   method='L-BFGS-B')
-            self.map[i,:] = k_to_vector(greedy_soln.x.reshape((1,(self.ssp_dim-2)//2)))
+            from scipy.optimize import minimize
+           
+            for i in range(1,len(self.keys)):
+                x0 = np.random.uniform(low=-np.pi, 
+                                       high=np.pi, 
+                                       size=((self.ssp_dim -2)// 2,))
+                greedy_soln = minimize(greedy_min_func, x0, 
+                                       args=(self.map[:i,:]), 
+                                       method='L-BFGS-B')
+                self.map[i,:] = k_to_vector(greedy_soln.x.reshape((1,(self.ssp_dim-2)//2)))
+            ### end for
+        ### end if
     ### end __init__
+
+    def from_codebook(self, codebook):
+        self.ssp_dim = codebook.shape[1]
+        self.map = codebook
+        self.keys = list(range(codebook.shape[0]))
 
 
     def encode(self, v):
@@ -106,6 +115,7 @@ class SSPEncoder:
         ls_mat = np.atleast_2d(np.diag(1/self.length_scale.flatten()))
         assert ls_mat.shape == (self.domain_dim, self.domain_dim), f'Expected Len Scale mat with dimensions {(self.domain_dim, self.domain_dim)}, got {ls_mat.shape}'
         scaled_x = x @ ls_mat
+        # TODO: add conditional debugging catch for non-zero imaginary components of the data.
         data = np.fft.ifft( np.exp( 1.j * self.phase_matrix @ scaled_x.T), axis=0 ).real
         return SSP(data.T)
     
@@ -201,5 +211,5 @@ def HexagonalSSPSpace(domain_dim:int,
         
     phase_matrix = conjugate_symmetry(phases_scaled_rotated)
 
-    return SSPEncoder(phases_scaled_rotated, length_scale=length_scale)
+    return SSPEncoder(phase_matrix, length_scale=length_scale)
 

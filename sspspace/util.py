@@ -10,10 +10,10 @@ def sample_domain(bounds, num_samples):
     sample_points = qmc.scale(u_sample_points, lbounds, ubounds)
     return sample_points
 
-def make_good_unitary(dim, eps=1e-3, rng=np.random):
+def make_good_unitary(dim, eps=1e-3, rng=np.random, mul=1):
     a = rng.rand((dim - 1) // 2)
     sign = rng.choice((-1, +1), len(a))
-    phi = sign * np.pi * (eps + a * (1 - 2 * eps))
+    phi = sign * mul * np.pi * (eps + a * (1 - 2 * eps))
     assert np.all(np.abs(phi) >= np.pi * eps)
     assert np.all(np.abs(phi) <= np.pi * (1 - eps))
 
@@ -34,10 +34,10 @@ def make_good_unitary(dim, eps=1e-3, rng=np.random):
 
 def conjugate_symmetry(K):
     d = K.shape[0]
-    F = np.ones((d*2 + 1,K.shape[1]), dtype="complex")
-    F[0:d,:] = np.exp(1.j*K)
-    F[-d:,:] = np.flip(np.conj(F[0:d,:]),axis=0)
-    return F
+    F = np.zeros((d*2 + 1,K.shape[1]))#, dtype="complex")
+    F[0:d,:] = K
+    F[-d:,:] = np.flip(-F[0:d,:],axis=0)
+    return np.fft.ifftshift(F, axes=0)
 
 def vecs_from_phases(K):
     d = K.shape[0]

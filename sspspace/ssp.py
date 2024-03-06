@@ -67,8 +67,6 @@ class SSP(np.ndarray):
         return invert(self)
 
     def __mul__(self, other):
-        ### TODO: Right now, the scalar has to come after the ssp
-        ### need to fix
         if hasattr(other, 'shape'):
             return bind(self, other)
         else:

@@ -115,6 +115,7 @@ class SSPEncoder:
         ls_mat = np.atleast_2d(np.diag(1/self.length_scale.flatten()))
         assert ls_mat.shape == (self.domain_dim, self.domain_dim), f'Expected Len Scale mat with dimensions {(self.domain_dim, self.domain_dim)}, got {ls_mat.shape}'
         scaled_x = x @ ls_mat
+        # TODO: add conditional debugging catch for non-zero imaginary components of the data.
         data = np.fft.ifft( np.exp( 1.j * self.phase_matrix @ scaled_x.T), axis=0 ).real
         return SSP(data.T)
     

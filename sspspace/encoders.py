@@ -118,6 +118,34 @@ class SSPEncoder:
         # TODO: add conditional debugging catch for non-zero imaginary components of the data.
         data = np.fft.ifft( np.exp( 1.j * self.phase_matrix @ scaled_x.T), axis=0 ).real
         return SSP(data.T)
+
+    def gradient(self, phi):
+        '''
+        Returns the gradient of an encoded SSP.  
+
+        Parameters:
+        -----------
+
+        phi : SSP
+            An SSP object representing a single SSP. i.e., has shape (1, ssp_dim)
+
+        Returns:
+        --------
+
+        grad : np.array
+
+            A (domain_dim, ssp_dim) np.array that represents the gradient of the encoding at the encoded value.
+
+        '''
+
+        phi_fourier = np.fft.fft(phi, axis=1)
+        ls_mat = np.atleast_2d(np.diag(1 / self.length_scale.flatten()))
+        # d/dx[e^iAx] = hadamard(iA, e^{iAx})
+        deriv_mat = 1.j * (self.phase_matrix @ ls_mat) # Derivative coeff
+
+        fourier_grad = np.einsum('dm,d->md',deriv_mat,phi_fourier.flatten())
+        return np.fft.ifft(fourier_grad, axis=1).real
+
     
     def encode_and_deriv(self,x):
         '''

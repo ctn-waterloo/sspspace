@@ -1,7 +1,7 @@
 import sys
 sys.path.append('../')
 
-from sspspace import SSP, SSPEncoder, RandomSSPSpace, HexagonalSSPSpace
+from sspspace import SSP, SSPEncoder, RandomSSPSpace, HexagonalSSPSpace, train_decoder_net
 import numpy as np
 
 
@@ -37,13 +37,35 @@ def test_hexagonal_encoding():
     # TODO: Figure out numerical comparison
 
 def test_gradient():
+#     def sinc_deriv(x):
+#         return np.divide(np.cos(x) - np.sin(x), x)
+# 
+#     def exact_grad(xs):
+#         return np.array([sinc_deriv(np.pi*xs[:,0]) * np.sinc(np.pi*xs[:,1]),  np.sinc(np.pi*xs[:,0])*sinc_deriv(np.pi*xs[:,1])])
 
-    x = np.array([[1,1]])
-    rand_encoder = RandomSSPSpace(domain_dim=2,ssp_dim=128)
+    x = np.array([[1.2,0.9]])
+#     rand_encoder = RandomSSPSpace(domain_dim=2,ssp_dim=128*256)
+    rand_encoder = HexagonalSSPSpace(domain_dim=2,n_rotates=5, n_scales=5)
+
+#     decoder,_ = train_decoder_net(rand_encoder, np.array([[-4,4],[-4,4]]), n_epochs=20)
 
     phi = rand_encoder.encode(x)
     grad = rand_encoder.gradient(phi)
+
     print(grad)
+#     print(decoder.decode(phi))
+    origin = rand_encoder.encode([[0,0]])
+
+    def f(x, enc=rand_encoder, org=origin):
+        return np.dot(enc.encode(x).flatten(), org.flatten())
+
+    from scipy.optimize import approx_fprime
+    print('approx fprime', approx_fprime(x.flatten(),f))
+    print('calc fprime', grad @ origin.T)
+#     print('exact fprime',exact_grad(x))
+
+if __name__=='__main__':
+    test_gradient()
 
 #     import matplotlib.pyplot as plt
 #     plt.imshow(square_sims)

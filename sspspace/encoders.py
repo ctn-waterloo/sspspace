@@ -138,13 +138,14 @@ class SSPEncoder:
 
         '''
 
-        phi_fourier = np.fft.fft(phi, axis=0)
+        phi_fourier = np.fft.fft(phi, axis=1)
         ls_mat = np.atleast_2d(np.diag(1 / self.length_scale.flatten()))
         # d/dx[e^iAx] = hadamard(iA, e^{iAx})
         deriv_mat = 1.j * (self.phase_matrix @ ls_mat) # Derivative coeff
+        print(deriv_mat.shape)
 
-        fourier_grad = np.einsum('dm,nd->nmd',deriv_mat,phi_fourier)
-        return np.fft.ifft(fourier_grad, axis=2)
+        fourier_grad = np.einsum('dm,d->md',deriv_mat,phi_fourier.flatten())
+        return np.fft.ifft(fourier_grad, axis=1)
 
     
     def encode_and_deriv(self,x):

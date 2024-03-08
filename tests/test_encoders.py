@@ -36,6 +36,15 @@ def test_hexagonal_encoding():
 
     # TODO: Figure out numerical comparison
 
+def test_gradient():
+
+    x = np.array([[1,1]])
+    rand_encoder = RandomSSPSpace(domain_dim=2,ssp_dim=128)
+
+    phi = rand_encoder.encode(x)
+    grad = rand_encoder.gradient(phi)
+    print(grad)
+
 #     import matplotlib.pyplot as plt
 #     plt.imshow(square_sims)
 #     plt.show()

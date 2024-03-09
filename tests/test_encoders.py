@@ -1,7 +1,7 @@
 import sys
 sys.path.append('../')
 
-from sspspace import SSP, SSPEncoder, RandomSSPSpace, HexagonalSSPSpace
+from sspspace import SSP, SSPEncoder, RandomSSPSpace, HexagonalSSPSpace, train_decoder_net
 import numpy as np
 
 
@@ -35,6 +35,66 @@ def test_hexagonal_encoding():
     square_sims = sims.reshape((ys.shape[0], xs.shape[0]))
 
     # TODO: Figure out numerical comparison
+
+def test_rand_gradient():
+
+    x = np.array([[1.2,0.9]])
+    rand_encoder = RandomSSPSpace(domain_dim=2,ssp_dim=128*256)
+
+    phi = rand_encoder.encode(x)
+    grad = rand_encoder.gradient(phi)
+
+    origin = rand_encoder.encode([[0,0]])
+
+    def f(x, enc=rand_encoder, org=origin):
+        return np.dot(enc.encode(x).flatten(), org.flatten())
+
+    from scipy.optimize import approx_fprime
+    approx_grad = approx_fprime(x.flatten(),f, epsilon=1e-8)
+    comp_grad = grad @ origin.T
+    assert np.allclose(approx_grad.flatten(), comp_grad.flatten()), f'Error computing gradient, expected {approx_grad}, got {comp_grad}'
+
+    rand_origin = np.random.normal(loc=0, scale=1, size=(rand_encoder.ssp_dim,))
+    rand_origin /= np.linalg.norm(rand_origin) 
+
+    def f_rand_origin(x, enc=rand_encoder, org=rand_origin):
+        return np.dot(enc.encode(x).flatten(), org.flatten())
+
+    rand_approx_grad = approx_fprime(x.flatten(),f_rand_origin, epsilon=1e-8)
+    rand_comp_grad = grad @ rand_origin.T
+    assert np.allclose(rand_approx_grad.flatten(), rand_comp_grad.flatten()), f'Error computing gradient, expected {rand_approx_grad}, got {rand_comp_grad}'
+
+def test_hex_gradient():
+
+    x = np.array([[1.2,0.9]])
+    hex_encoder = HexagonalSSPSpace(domain_dim=2,n_rotates=5, n_scales=5)
+
+    phi = hex_encoder.encode(x)
+    grad = hex_encoder.gradient(phi)
+
+    origin = hex_encoder.encode([[0,0]])
+
+    def f(x, enc=hex_encoder, org=origin):
+        return np.dot(enc.encode(x).flatten(), org.flatten())
+
+    from scipy.optimize import approx_fprime
+    approx_grad = approx_fprime(x.flatten(),f, epsilon=1e-8)
+    comp_grad = grad @ origin.T
+    assert np.allclose(approx_grad.flatten(), comp_grad.flatten()), f'Error computing gradient, expected {approx_grad}, got {comp_grad}'
+
+    rand_origin = np.random.normal(loc=0, scale=1, size=(hex_encoder.ssp_dim,))
+    rand_origin /= np.linalg.norm(rand_origin) 
+
+    def f_rand_origin(x, enc=hex_encoder, org=rand_origin):
+        return np.dot(enc.encode(x).flatten(), org.flatten())
+
+    rand_approx_grad = approx_fprime(x.flatten(),f_rand_origin, epsilon=1e-8)
+    rand_comp_grad = grad @ rand_origin.T
+    assert np.allclose(rand_approx_grad.flatten(), rand_comp_grad.flatten()), f'Error computing gradient, expected {rand_approx_grad}, got {rand_comp_grad}'
+
+if __name__=='__main__':
+    test_rand_gradient()
+    test_hex_gradient()
 
 #     import matplotlib.pyplot as plt
 #     plt.imshow(square_sims)

@@ -11,50 +11,45 @@ def k_to_vector(K):
 
 
 class DiscreteSPSpace:
-    def __init__(self, keys, ssp_dim, optimize=False, mul=1):
+    def __init__(self, keys, ssp_dim):
+        self.ssp_dim = ssp_dim 
+        self.length_scale = np.array([1])
         self.keys = keys
-        if not optimize:
-            self.ssp_dim = ssp_dim
-            self.map = SSP([make_good_unitary(ssp_dim, mul=1) for k in self.keys])
-        else:
-            self.ssp_dim = ssp_dim + 2
-            self.map = SSP(np.zeros((len(self.keys), self.ssp_dim)))
+#         self.map = SSP([make_good_unitary(ssp_dim) for k in self.keys])
 
-            phase0 = np.random.uniform(low=-np.pi, high=np.pi, 
-                                       size=(1, (self.ssp_dim-2)//2))
+        self.map = SSP(np.zeros((len(self.keys), self.ssp_dim)))
 
-            self.map[0,:] = k_to_vector(phase0)
-            
-            def greedy_min_func(x, vecs):
-                K = x.reshape((1,vecs.shape[1]//2 - 1))
-                phi = k_to_vector(K)    
-                sims = np.einsum('nd,md->nm', phi, vecs)
-                return np.linalg.norm(sims)
+        phase0 = np.random.uniform(low=-np.pi, high=np.pi, 
+                                   size=(1, (self.ssp_dim-2)//2))
 
-            from scipy.optimize import minimize
-           
-            for i in range(1,len(self.keys)):
-                x0 = np.random.uniform(low=-np.pi, 
-                                       high=np.pi, 
-                                       size=((self.ssp_dim -2)// 2,))
-                greedy_soln = minimize(greedy_min_func, x0, 
-                                       args=(self.map[:i,:]), 
-                                       method='L-BFGS-B')
-                self.map[i,:] = k_to_vector(greedy_soln.x.reshape((1,(self.ssp_dim-2)//2)))
-            ### end for
-        ### end if
+        self.map[0,:] = k_to_vector(phase0)
+        
+        def greedy_min_func(x, vecs):
+            K = x.reshape((1,vecs.shape[1]//2 - 1))
+            phi = k_to_vector(K)    
+            sims = np.einsum('nd,md->nm', phi, vecs)
+            return np.linalg.norm(sims)
+
+        from scipy.optimize import minimize
+       
+        for i in range(1,len(self.keys)):
+            x0 = np.random.uniform(low=-np.pi, 
+                                   high=np.pi, 
+                                   size=((self.ssp_dim -2)// 2,))
+            greedy_soln = minimize(greedy_min_func, x0, 
+                                   args=(self.map[:i,:]), 
+                                   method='L-BFGS-B')
+            self.map[i,:] = k_to_vector(greedy_soln.x.reshape((1,(self.ssp_dim-2)//2)))
     ### end __init__
 
-    def from_codebook(self, codebook):
-        self.ssp_dim = codebook.shape[1]
-        self.map = codebook
-        self.keys = list(range(codebook.shape[0]))
 
-
-    def encode(self, v):
-        if v not in self.keys:
-            raise RuntimeWarning(f'Key {v} is not in the dictionary')
-        return self.map[self.keys.index(v),:].reshape((1,-1))
+    def encode(self, vals):
+        retval = np.zeros((vals.shape[0], self.ssp_dim))
+        for v_idx, v in enumerate(vals): 
+            if v not in self.keys:
+                raise RuntimeWarning(f'Key {v} is not in the dictionary')
+            retval[v_idx,:] = self.map[self.keys.index(v),:].reshape((1,-1))
+        return SSP(retval)
 
     def decode(self, ssp):
         return self.keys[np.argmax(self.map | ssp)]
@@ -118,6 +113,34 @@ class SSPEncoder:
         # TODO: add conditional debugging catch for non-zero imaginary components of the data.
         data = np.fft.ifft( np.exp( 1.j * self.phase_matrix @ scaled_x.T), axis=0 ).real
         return SSP(data.T)
+
+    def gradient(self, phi):
+        '''
+        Returns the gradient of an encoded SSP.  
+
+        Parameters:
+        -----------
+
+        phi : SSP
+            An SSP object representing a single SSP. i.e., has shape (1, ssp_dim)
+
+        Returns:
+        --------
+
+        grad : np.array
+
+            A (domain_dim, ssp_dim) np.array that represents the gradient of the encoding at the encoded value.
+
+        '''
+
+        phi_fourier = np.fft.fft(phi, axis=1)
+        ls_mat = np.atleast_2d(np.diag(1 / self.length_scale.flatten()))
+        # d/dx[e^iAx] = hadamard(iA, e^{iAx})
+        deriv_mat = 1.j * (self.phase_matrix @ ls_mat) # Derivative coeff
+
+        fourier_grad = np.einsum('dm,d->md',deriv_mat,phi_fourier.flatten())
+        return np.fft.ifft(fourier_grad, axis=1).real
+
     
     def encode_and_deriv(self,x):
         '''

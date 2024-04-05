@@ -1,6 +1,18 @@
 import numpy as np
 
 from scipy.stats import qmc
+from scipy.special import softmax
+
+from .ssp import SSP
+
+class Cleanup:
+    def __init__(self, vocab, temperature=1e5):
+        self.weights = np.array([vocab[k] for k in vocab.keys()]).squeeze()
+        self.temp = temperature
+    def __call__(self, x):
+        sims = np.einsum('nd,md->nm', self.weights, x)
+        max_sim = softmax(sims*self.temp, axis=0)
+        return SSP(np.einsum('nd,nm->md', self.weights, max_sim))
 
 def sample_domain(bounds, num_samples):
     sampler = qmc.Sobol(d=bounds.shape[0]) 

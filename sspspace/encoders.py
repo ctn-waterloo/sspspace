@@ -11,11 +11,10 @@ def k_to_vector(K):
 
 
 class DiscreteSPSpace:
-    def __init__(self, keys, ssp_dim):
+    def __init__(self, keys, ssp_dim, optimize=True):
         self.ssp_dim = ssp_dim 
         self.length_scale = np.array([1])
         self.keys = keys
-#         self.map = SSP([make_good_unitary(ssp_dim) for k in self.keys])
 
         self.map = SSP(np.zeros((len(self.keys), self.ssp_dim)))
 
@@ -36,19 +35,28 @@ class DiscreteSPSpace:
             x0 = np.random.uniform(low=-np.pi, 
                                    high=np.pi, 
                                    size=((self.ssp_dim -2)// 2,))
-            greedy_soln = minimize(greedy_min_func, x0, 
-                                   args=(self.map[:i,:]), 
-                                   method='L-BFGS-B')
-            self.map[i,:] = k_to_vector(greedy_soln.x.reshape((1,(self.ssp_dim-2)//2)))
+            if optimize:
+                greedy_soln = minimize(greedy_min_func, x0, 
+                                       args=(self.map[:i,:]), 
+                                       method='L-BFGS-B')
+                self.map[i,:] = k_to_vector(greedy_soln.x.reshape((1,(self.ssp_dim-2)//2)))
+            else:
+                self.map[i,:] = k_to_vector(x0.reshape((1,(self.ssp_dim-2)//2)))
     ### end __init__
 
 
     def encode(self, vals):
-        retval = np.zeros((vals.shape[0], self.ssp_dim))
-        for v_idx, v in enumerate(vals): 
-            if v not in self.keys:
-                raise RuntimeWarning(f'Key {v} is not in the dictionary')
-            retval[v_idx,:] = self.map[self.keys.index(v),:].reshape((1,-1))
+
+        retval = None
+        if isinstance(vals, (str, int)):
+            retval = np.zeros((1,self.ssp_dim))
+            retval[0,:] = self.map[self.keys.index(vals),:].reshape((1,-1))
+        else:
+            retval = np.zeros((len(vals), self.ssp_dim))
+            for v_idx, v in enumerate(vals): 
+                if v not in self.keys:
+                    raise RuntimeWarning(f'Key {v} is not in the dictionary')
+                retval[v_idx,:] = self.map[self.keys.index(v),:].reshape((1,-1))
         return SSP(retval)
 
     def decode(self, ssp):

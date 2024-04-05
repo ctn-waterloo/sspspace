@@ -20,7 +20,8 @@ def invert(a):
     return a[:,-np.arange(a.ssp_dim)]
 
 def normalize(ssp):
-    return ssp.data/np.maximum(np.sqrt(np.sum(ssp**2, axis=1)), 1e-8)
+    #return ssp.data/np.maximum(np.sqrt(np.sum(ssp**2, axis=1)), 1e-8)
+    return SSP(ssp.data/np.linalg.norm(ssp.data, axis=1))
 
 def make_unitary(ssp):
     '''
@@ -82,3 +83,6 @@ class SSP(np.ndarray):
 
     def unitary(self):
         return make_unitary(self)
+
+    def normalize(self):
+        return normalize(self)

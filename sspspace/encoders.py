@@ -183,11 +183,12 @@ class SSPEncoder:
 # Make Encoder Matrices
 def RandomSSPSpace(domain_dim:int, ssp_dim:int, 
                    length_scale:Optional[Union[int, np.ndarray]]=1, 
-                   rng=np.random.default_rng()):
+                   rng=np.random.default_rng(), 
+                   dist='uniform'):
 
     axis_matrix = np.zeros((ssp_dim,domain_dim))
     for i in range(domain_dim):
-        axis_matrix[:,i] = make_good_unitary(ssp_dim)
+        axis_matrix[:,i] = make_good_unitary(ssp_dim, rng=rng, dist=dist)
 
     phase_matrix = (-1.j*np.log(np.fft.fft(axis_matrix,axis=0))).real
     

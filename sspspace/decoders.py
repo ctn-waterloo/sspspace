@@ -113,7 +113,7 @@ def train_decoder_net_sk(encoder, bounds, n_training_pts = 200000,
     return SSPDecoder(bounds, model, encoder), history
 
 
-def train_decoder_net_tf(encoder, bounds, n_training_pts=200000
+def train_decoder_net_tf(encoder, bounds, n_training_pts=200000,
                       hidden_units = [8],
                       learning_rate=1e-3, 
                       n_epochs = 100, 

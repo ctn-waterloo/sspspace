@@ -10,12 +10,15 @@ def sample_domain(bounds, num_samples):
     sample_points = qmc.scale(u_sample_points, lbounds, ubounds)
     return sample_points
 
-def make_good_unitary(dim, eps=1e-3, rng=np.random, mul=1):
-    a = rng.rand((dim - 1) // 2)
+def make_good_unitary(dim, eps=1e-3, rng=np.random.default_rng(), mul=1, dist='uniform'):
+    if dist == 'gaussian':
+        a = rng.normal(size=(dim - 1) // 2)
+    else:
+        a = rng.random((dim - 1) // 2)
     sign = rng.choice((-1, +1), len(a))
     phi = sign * mul * np.pi * (eps + a * (1 - 2 * eps))
     assert np.all(np.abs(phi) >= np.pi * eps)
-    assert np.all(np.abs(phi) <= np.pi * (1 - eps))
+    assert np.all(np.abs(phi) <= np.pi * (1 - eps)) if dist != 'gaussian' else True
 
     fv = np.zeros(dim, dtype='complex64')
     fv[0] = 1

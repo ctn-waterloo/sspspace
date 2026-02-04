@@ -183,13 +183,20 @@ class SSPEncoder:
 # Make Encoder Matrices
 def RandomSSPSpace(domain_dim:int, ssp_dim:int, 
                    length_scale:Optional[Union[int, np.ndarray]]=1, 
-                   rng=np.random.default_rng()):
-
-    axis_matrix = np.zeros((ssp_dim,domain_dim))
-    for i in range(domain_dim):
-        axis_matrix[:,i] = make_good_unitary(ssp_dim)
-
-    phase_matrix = (-1.j*np.log(np.fft.fft(axis_matrix,axis=0))).real
+                   rng=np.random.default_rng(), kernel="sinc"):
+    assert kernel in ["sinc", "gaussian", "jinc"], f"Kernel \"{kernel}\" is not in supported"
+    
+    phase_matrix=np.zeros((ssp_dim, domain_dim))
+    if kernel == "sinc":
+        phase_samples = rng.uniform(-1, 1, size=((ssp_dim - 1)//2, domain_dim))
+    elif kernel == "gaussian":
+        phase_samples = rng.normal(0, 1, size=((ssp_dim - 1)//2, domain_dim))
+    else:
+        from scipy.stats import semicircular
+        phase_samples = semicircular.rvs(0, 1, size=((ssp_dim - 1)//2, domain_dim))
+    
+    phase_matrix[1:(ssp_dim + 1) // 2,:] = phase_samples
+    phase_matrix[-1:ssp_dim // 2:-1] = -phase_matrix[1:(ssp_dim + 1) // 2,:]
     
     return SSPEncoder(phase_matrix, length_scale=length_scale)
 
@@ -197,32 +204,29 @@ def RandomSSPSpace(domain_dim:int, ssp_dim:int,
 def HexagonalSSPSpace(domain_dim:int, 
                       n_rotates:int=5, 
                       n_scales:int=5, 
-                      scale_min:float=0.1, 
-                      scale_max:float=3,
+                      kernel="jinc",
                       length_scale:Optional[Union[int, np.ndarray]]=1):
     '''
     Creates an SSP space using the Hexagonal Tiling developed by NS Dumont 
     (2020)
     '''
+    assert kernel in ["sinc", "gaussian", "jinc"], f"Kernel \"{kernel}\" is not in supported"
     phases_hex = np.hstack([np.sqrt(1+ 1/domain_dim)*np.identity(domain_dim) - (domain_dim**(-3/2))*(np.sqrt(domain_dim+1) + 1),
                          (domain_dim**(-1/2))*np.ones((domain_dim,1))]).T
-        
-    grid_basis_dim = domain_dim + 1
-    num_grids = n_rotates*n_scales
-    scale_min = scale_min
-    scale_max = scale_max
-    n_scales = n_scales
-    n_rotates = n_rotates
-        
-    #scales = scale_max*(np.linspace((scale_min/scale_max)**2,1,n_scales))**(1/domain_dim)
-    scales = np.linspace(scale_min,scale_max,n_scales)
+
+    scales = np.linspace(0, 1, (n_scales if domain_dim != 1 else n_scales + n_rotates) + 1, endpoint=False)[1:]
+    
+    if kernel == "sinc":
+        scales = scales ** (1/domain_dim)
+    elif kernel == "gaussian":
+        from scipy.stats import chi
+        scales = chi.ppf(scales, df=domain_dim, loc=0, scale=1)
+    else:
+        pass 
     phases_scaled = np.vstack([phases_hex*i for i in scales])
-        
-    if (n_rotates==1):
+
+    if (n_rotates == 1 or domain_dim == 1):
         phases_scaled_rotated = phases_scaled
-    elif (domain_dim==1):
-        scales = np.linspace(scale_min,scale_max,n_scales+n_rotates)
-        phases_scaled_rotated = np.vstack([phases_hex*i for i in scales])
     elif (domain_dim == 2):
         angles = np.linspace(0,2*np.pi/3,n_rotates,endpoint=False)
         R_mats = np.stack([np.stack([np.cos(angles), -np.sin(angles)],axis=1),

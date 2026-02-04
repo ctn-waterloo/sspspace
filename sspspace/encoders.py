@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional, Sequence, SupportsFloat, Tuple, Type, Union
 
 import numpy as np
+from scipy.stats import semicircular, chi
 from .ssp import SSP
 from .util import make_good_unitary, conjugate_symmetry, vecs_from_phases
 
@@ -192,7 +193,6 @@ def RandomSSPSpace(domain_dim:int, ssp_dim:int,
     elif kernel == "gaussian":
         phase_samples = rng.normal(0, 1, size=((ssp_dim - 1)//2, domain_dim))
     else:
-        from scipy.stats import semicircular
         phase_samples = semicircular.rvs(0, 1, size=((ssp_dim - 1)//2, domain_dim))
     
     phase_matrix[1:(ssp_dim + 1) // 2,:] = phase_samples
@@ -200,6 +200,26 @@ def RandomSSPSpace(domain_dim:int, ssp_dim:int,
     
     return SSPEncoder(phase_matrix, length_scale=length_scale)
 
+def CyclicSSPSpace(domain_dim:int, ssp_dim:int, period:float,
+                   band_scale:Optional[Union[int, np.ndarray]]=1,
+                   rng=np.random.default_rng(), kernel="sinc"):
+    assert kernel in ["sinc", "gaussian", "jinc"], f"Kernel \"{kernel}\" is not in supported"
+    
+    phase_matrix = np.zeros((ssp_dim, domain_dim))
+    if kernel == "sinc":
+        scales = rng.uniform(-1, 1, size=((ssp_dim - 1) // 2, domain_dim))
+    elif kernel == "gaussian":
+        scales = rng.normal(0, 1, size=((ssp_dim - 1) // 2, domain_dim))
+    else:
+        scales = semicircular.rvs(0, 1, size=((ssp_dim - 1) // 2, domain_dim))
+    
+    scales = (period / band_scale) * scales
+    int_scales = ((2 * np.pi) / period) * np.floor(scales)
+
+    phase_matrix[1:(ssp_dim + 1) // 2,:] = int_scales
+    phase_matrix[-1:ssp_dim // 2:-1] = -phase_matrix[1:(ssp_dim + 1) // 2,:]
+
+    return SSPEncoder(phase_matrix, length_scale=1)
 
 def HexagonalSSPSpace(domain_dim:int, 
                       n_rotates:int=5, 
@@ -219,7 +239,6 @@ def HexagonalSSPSpace(domain_dim:int,
     if kernel == "sinc":
         scales = scales ** (1/domain_dim)
     elif kernel == "gaussian":
-        from scipy.stats import chi
         scales = chi.ppf(scales, df=domain_dim, loc=0, scale=1)
     else:
         pass 

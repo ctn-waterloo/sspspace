@@ -187,7 +187,7 @@ def RandomSSPSpace(domain_dim:int, ssp_dim:int,
                    rng=np.random.default_rng(), kernel="sinc"):
     assert kernel in ["sinc", "gaussian", "jinc"], f"Kernel \"{kernel}\" is not in supported"
     
-    phase_matrix=np.zeros((ssp_dim, domain_dim))
+    phase_matrix = np.zeros((ssp_dim, domain_dim))
     if kernel == "sinc":
         phase_samples = rng.uniform(-1, 1, size=((ssp_dim - 1)//2, domain_dim))
     elif kernel == "gaussian":
@@ -199,6 +199,30 @@ def RandomSSPSpace(domain_dim:int, ssp_dim:int,
     phase_matrix[-1:ssp_dim // 2:-1] = -phase_matrix[1:(ssp_dim + 1) // 2,:]
     
     return SSPEncoder(phase_matrix, length_scale=length_scale)
+
+def JointSSPSpace(domain_dim:int, ssp_dim:int,
+                  length_scale:Optional[Union[int, np.ndarray]]=1,
+                  rng=np.random.default_rng(), kernel="sinc"):
+    assert kernel in ["sinc", "gaussian", "jinc"], f"Kernel \"{kernel}\" is not in supported"
+
+    dir_matrix = rng.normal(0, 1, size=((ssp_dim - 1) // 2, domain_dim))
+    dir_matrix /= np.linalg.norm(dir_matrix, axis=1)[:,np.newaxis]
+
+    phase_matrix = np.zeros((ssp_dim, domain_dim))
+    
+    scales = rng.uniform(0, 1, size=((ssp_dim - 1) // 2, 1))
+    if kernel == "sinc":
+        scales = scales ** (1 / domain_dim)
+    elif kernel == "gaussian":
+        scales = chi.ppf(scales, df=domain_dim, loc=0, scale=1)
+    else:
+        pass
+    
+    phase_matrix[1:(ssp_dim + 1) // 2,:] = dir_matrix * scales
+    phase_matrix[-1:ssp_dim // 2:-1] = -phase_matrix[1:(ssp_dim + 1) // 2,:]
+
+    return SSPEncoder(phase_matrix, length_scale=length_scale)
+
 
 def CyclicSSPSpace(domain_dim:int, ssp_dim:int, period:float,
                    band_scale:Optional[Union[int, np.ndarray]]=1,

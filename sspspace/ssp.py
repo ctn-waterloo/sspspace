@@ -1,9 +1,9 @@
 import numpy as np
 
-def sim(a,b):
+def sim(a : np.ndarray, b : np.ndarray):
     return np.einsum('nd,md->nm', a, b)
 
-def bind(a, b):
+def bind(a : np.ndarray, b : np.ndarray):
     '''
     Binds (circular convolution) two sets of vectors together
     '''
@@ -13,23 +13,23 @@ def bind(a, b):
     b = np.atleast_2d(b)
     return np.fft.ifft(np.fft.fft(a, axis=1) * np.fft.fft(b,axis=1), axis=1).real.view(SSP)
     
-def invert(a):
+def invert(a : np.ndarray):
     '''
     Implements the pseudo-inverse of the SSP
     '''
     return a[:,-np.arange(a.ssp_dim)]
 
 def normalize(ssp):
-    return ssp.data/np.maximum(np.sqrt(np.sum(ssp**2, axis=1)), 1e-8)
+    return SSP(ssp.v/np.maximum(np.sqrt(np.sum(ssp**2, axis=1)), 1e-8))
 
 def make_unitary(ssp):
     '''
     Ensures the SSPs are unitary vectors.  See notes for make_unitary_fourier
     '''
-    fssp = make_unitary_fourier(np.fft.fft(ssp, axis=1))
+    fssp = make_unitary_fourier(np.fft.fft(ssp.v, axis=1))
     return SSP(np.fft.ifft(fssp, axis=1).real)
 
-def make_unitary_fourier(fssp):
+def make_unitary_fourier(fssp : np.ndarray):
     '''
     Ensures the SSPs are unitary vectors, which ensures that for all phasors, 
     Ae^{i\theta}, the coefficient A=1. This is important to make sure that 
@@ -42,38 +42,35 @@ def fourier_log(ssp):
     '''
     Computes the log of the Fourier representation 
     '''
-    return np.ifft(np.log(np.fft(ssp, axis=1)), axis=1)
+    return np.ifft(np.log(np.fft(ssp.v, axis=1)), axis=1)
 
-class SSP(np.ndarray):
-    def __new__(cls, input_array):
-        obj = np.atleast_2d(np.asarray(input_array)).view(cls)
-        return obj
-
-    def __init__(cls, *args, **kwargs):
-        pass
-
-    def __array_finalize__(self, obj):
-        if obj is None: return
+class SSP:
+    def __init__(self, input_array):
+        self.v = np.copy(input_array)
 
     @property
     def ssp_dim(self):
-        return self.shape[1]
+        return self.v.shape[1]
        
     @property
     def num_pts(self):
-        return self.shape[0]
+        return self.v.shape[0]
 
     def __invert__(self):
-        return invert(self)
+        return SSP(invert(self.v))
+
+    def __add__(self, other):
+        assert self.v.shape == other.v.shape, f'Expected arguments to have the same shape but got {self.v.shape} and {other.v.shape}'
+        return SSP(self.v + other.v)
 
     def __mul__(self, other):
-        if hasattr(other, 'shape'):
-            return bind(self, other)
+        if hasattr(other, 'v'):
+            return SSP(bind(self.v, other.v))
         else:
-            return np.multiply(self, other)
+            return SSP(np.multiply(self.v, other))
 
     def __or__(self, other):
-        return sim(self, other)
+        return sim(self.v, other.v)
     
     def identity(self):
         s = np.zeros(self.shape[1])
@@ -81,4 +78,4 @@ class SSP(np.ndarray):
         return s
 
     def unitary(self):
-        return make_unitary(self)
+        return make_unitary(self.v)

@@ -4,6 +4,8 @@ import numpy as np
 from .ssp import SSP
 from .util import make_good_unitary, conjugate_symmetry, vecs_from_phases
 
+import copy
+
 def k_to_vector(K):
     fs = vecs_from_phases(K.T).T
     phis = np.fft.ifft(fs, axis=1).real
@@ -235,4 +237,3 @@ def HexagonalSSPSpace(domain_dim:int,
     phase_matrix = conjugate_symmetry(phases_scaled_rotated)
 
     return SSPEncoder(phase_matrix, length_scale=length_scale)
-

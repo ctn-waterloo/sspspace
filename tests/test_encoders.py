@@ -1,7 +1,7 @@
 import sys
 sys.path.append('../')
 
-from sspspace import SSP, SSPEncoder, RandomSSPSpace, HexagonalSSPSpace, train_decoder_net
+from sspspace import SSP, SSPEncoder, RandomSSPSpace, HexagonalSSPSpace 
 import numpy as np
 
 
@@ -47,18 +47,18 @@ def test_rand_gradient():
     origin = rand_encoder.encode([[0,0]])
 
     def f(x, enc=rand_encoder, org=origin):
-        return np.dot(enc.encode(x).flatten(), org.flatten())
+        return np.dot(enc.encode(x).v.flatten(), org.v.flatten())
 
     from scipy.optimize import approx_fprime
     approx_grad = approx_fprime(x.flatten(),f, epsilon=1e-8)
-    comp_grad = grad @ origin.T
+    comp_grad = grad @ origin.v.T
     assert np.allclose(approx_grad.flatten(), comp_grad.flatten()), f'Error computing gradient, expected {approx_grad}, got {comp_grad}'
 
     rand_origin = np.random.normal(loc=0, scale=1, size=(rand_encoder.ssp_dim,))
     rand_origin /= np.linalg.norm(rand_origin) 
 
     def f_rand_origin(x, enc=rand_encoder, org=rand_origin):
-        return np.dot(enc.encode(x).flatten(), org.flatten())
+        return np.dot(enc.encode(x).v.flatten(), org.flatten())
 
     rand_approx_grad = approx_fprime(x.flatten(),f_rand_origin, epsilon=1e-8)
     rand_comp_grad = grad @ rand_origin.T
@@ -75,18 +75,18 @@ def test_hex_gradient():
     origin = hex_encoder.encode([[0,0]])
 
     def f(x, enc=hex_encoder, org=origin):
-        return np.dot(enc.encode(x).flatten(), org.flatten())
+        return np.dot(enc.encode(x).v.flatten(), org.v.flatten())
 
     from scipy.optimize import approx_fprime
     approx_grad = approx_fprime(x.flatten(),f, epsilon=1e-8)
-    comp_grad = grad @ origin.T
+    comp_grad = grad @ origin.v.T
     assert np.allclose(approx_grad.flatten(), comp_grad.flatten()), f'Error computing gradient, expected {approx_grad}, got {comp_grad}'
 
     rand_origin = np.random.normal(loc=0, scale=1, size=(hex_encoder.ssp_dim,))
     rand_origin /= np.linalg.norm(rand_origin) 
 
     def f_rand_origin(x, enc=hex_encoder, org=rand_origin):
-        return np.dot(enc.encode(x).flatten(), org.flatten())
+        return np.dot(enc.encode(x).v.flatten(), org.flatten())
 
     rand_approx_grad = approx_fprime(x.flatten(),f_rand_origin, epsilon=1e-8)
     rand_comp_grad = grad @ rand_origin.T

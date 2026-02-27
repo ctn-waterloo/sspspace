@@ -11,13 +11,13 @@ def bind(a : np.ndarray, b : np.ndarray):
     assert a.shape[1] == b.shape[1], f'Expected SSPs to have same dimensionality.  Got {a.shape} * {b.shape}'
     a = np.atleast_2d(a)
     b = np.atleast_2d(b)
-    return np.fft.ifft(np.fft.fft(a, axis=1) * np.fft.fft(b,axis=1), axis=1).real.view(SSP)
+    return np.fft.ifft(np.fft.fft(a, axis=1) * np.fft.fft(b,axis=1), axis=1).real
     
 def invert(a : np.ndarray):
     '''
     Implements the pseudo-inverse of the SSP
     '''
-    return a[:,-np.arange(a.ssp_dim)]
+    return a[:,-np.arange(a.shape[1])]
 
 def normalize(ssp):
     return SSP(ssp.v/np.maximum(np.sqrt(np.sum(ssp**2, axis=1)), 1e-8))
@@ -59,18 +59,42 @@ class SSP:
     def __invert__(self):
         return SSP(invert(self.v))
 
+
     def __add__(self, other):
         assert self.v.shape == other.v.shape, f'Expected arguments to have the same shape but got {self.v.shape} and {other.v.shape}'
-        return SSP(self.v + other.v)
+        if hasattr(other, 'v'):
+            return SSP(self.v + other.v)
+        else:
+            return SSP(self.v + other)
+
+    def __radd__(self, other):
+        return self.__add__(other)
 
     def __mul__(self, other):
         if hasattr(other, 'v'):
             return SSP(bind(self.v, other.v))
         else:
-            return SSP(np.multiply(self.v, other))
+            return SSP(other * self.v)
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
 
     def __or__(self, other):
         return sim(self.v, other.v)
+
+    def __eq__(self, other):
+        if hasattr(other, 'v'):
+            return self.v == other.v
+        elif hasattr(other, 'shape') and self.v.shape == other.shape:
+            return self.v == other
+        else:
+            raise TypeError(f'Expect SSP or numpy array but received {type(other)}')
+
+    def __getitem__(self, key):
+        return self.v[key]
+
+    def __str__(self):
+        return f'SSP({self.v})'
     
     def identity(self):
         s = np.zeros(self.shape[1])

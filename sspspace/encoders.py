@@ -12,7 +12,7 @@ def k_to_vector(K):
 
 
 class DiscreteSPSpace:
-    def __init__(self, keys, ssp_dim):
+    def __init__(self, keys, ssp_dim, optimal_phis=False):
         self.ssp_dim = ssp_dim 
         self.length_scale = np.array([1])
         self.keys = keys
@@ -24,28 +24,34 @@ class DiscreteSPSpace:
                                    size=(1, (self.ssp_dim-2)//2))
 
         self.map[0,:] = k_to_vector(phase0)
-        
-        def greedy_min_func(x, vecs):
-            K = x.reshape((1,vecs.shape[1]//2 - 1))
-            phi = k_to_vector(K)    
-            sims = np.einsum('nd,md->nm', phi, vecs)
-            return np.linalg.norm(sims)
-
-        from scipy.optimize import minimize
        
-        for i in range(1,len(self.keys)):
-            x0 = np.random.uniform(low=-np.pi, 
-                                   high=np.pi, 
-                                   size=((self.ssp_dim -2)// 2,))
-            greedy_soln = minimize(greedy_min_func, x0, 
-                                   args=(self.map[:i,:]), 
-                                   method='L-BFGS-B')
-            self.map[i,:] = k_to_vector(greedy_soln.x.reshape((1,(self.ssp_dim-2)//2)))
+        if optimal_phis:
+            def greedy_min_func(x, vecs):
+                K = x.reshape((1,vecs.shape[1]//2 - 1))
+                phi = k_to_vector(K)    
+                sims = np.einsum('nd,md->nm', phi, vecs)
+                return np.linalg.norm(sims)
+
+            from scipy.optimize import minimize
+       
+            for i in range(1,len(self.keys)):
+                x0 = np.random.uniform(low=-np.pi, 
+                                       high=np.pi, 
+                                       size=((self.ssp_dim -2)// 2,))
+                greedy_soln = minimize(greedy_min_func, x0, 
+                                       args=(self.map[:i,:]), 
+                                       method='L-BFGS-B')
+                self.map[i,:] = k_to_vector(greedy_soln.x.reshape((1,(self.ssp_dim-2)//2)))
+        else:
+            for i in range(1, len(self.keys)):
+                phase0 = np.random.uniform(low=-np.pi, high=np.pi, 
+                                   size=(1, (self.ssp_dim-2)//2))
+                self.map[i,:] = k_to_vector(phase0)
     ### end __init__
 
 
     def encode(self, vals):
-        retval = np.zeros((vals.shape[0], self.ssp_dim))
+        retval = np.zeros((len(vals), self.ssp_dim))
         for v_idx, v in enumerate(vals): 
             if v not in self.keys:
                 raise RuntimeWarning(f'Key {v} is not in the dictionary')

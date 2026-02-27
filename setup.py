@@ -8,7 +8,7 @@ def read(fname):
 
 setup(
         name = 'sspspace',
-        version = '0.1',
+        version = '0.2',
         author='Nicole S.Y. Dumont, P. Michael Furlong', 
         author_email='ns2dumont@uwaterloo.ca, michael.furlong@uwaterloo.ca',
         description=('Algebraic Implementation of Spatial Semantic Pointers'),

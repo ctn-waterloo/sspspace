@@ -32,12 +32,13 @@ def make_good_unitary(dim, eps=1e-3, rng=np.random, mul=1):
     assert np.allclose(np.linalg.norm(v), 1)
     return v
 
-def conjugate_symmetry(K):
+def conjugate_symmetry(K, even=False):
     d = K.shape[0]
-    F = np.zeros((d*2 + 1,K.shape[1]))#, dtype="complex")
-    F[0:d,:] = K
-    F[-d:,:] = np.flip(-F[0:d,:],axis=0)
-    return np.fft.ifftshift(F, axes=0)
+    dd = d * 2 + 1 + int(even)
+    F = np.zeros((dd, K.shape[1]))#, dtype="complex")
+    F[1:(dd + 1) // 2,:] = K
+    F[-1:dd // 2:-1] = -F[1:(dd + 1) // 2,:]
+    return F
 
 def vecs_from_phases(K):
     d = K.shape[0]

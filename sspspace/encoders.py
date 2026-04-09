@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional, Sequence, SupportsFloat, Tuple, Type, Union
 
 import numpy as np
-from scipy.stats import semicircular, chi
+from scipy.stats import semicircular, chi, special_ortho_group
 from .ssp import SSP
 from .util import make_good_unitary, conjugate_symmetry, vecs_from_phases
 
@@ -248,8 +248,9 @@ def CyclicSSPSpace(domain_dim:int, ssp_dim:int, period:float,
 def HexagonalSSPSpace(domain_dim:int, 
                       n_rotates:int=5, 
                       n_scales:int=5, 
-                      kernel="jinc",
-                      length_scale:Optional[Union[int, np.ndarray]]=1):
+                      kernel="hypergeom",
+                      length_scale:Optional[Union[int, np.ndarray]]=1,
+                      even=False):
     '''
     Creates an SSP space using the Hexagonal Tiling developed by NS Dumont 
     (2020)
@@ -279,7 +280,7 @@ def HexagonalSSPSpace(domain_dim:int,
         R_mats = special_ortho_group.rvs(domain_dim, size=n_rotates, random_state=1)
         phases_scaled_rotated = (R_mats @ phases_scaled.T).transpose(0,2,1).reshape(-1,domain_dim)
         
-    phase_matrix = conjugate_symmetry(phases_scaled_rotated)
+    phase_matrix = conjugate_symmetry(phases_scaled_rotated, even=even)
 
     return SSPEncoder(phase_matrix, length_scale=length_scale)
 

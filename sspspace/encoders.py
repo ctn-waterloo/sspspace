@@ -191,10 +191,10 @@ class SSPEncoder:
 def RandomSSPSpace(domain_dim:int, ssp_dim:int, 
                    length_scale:Optional[Union[int, np.ndarray]]=1, 
                    rng=np.random.default_rng(), kernel="sinc"):
-    assert kernel in ["jinc", "gaussian", "hypergeom"], f"Kernel \"{kernel}\" is not in supported"
+    assert kernel in ["sinc", "gaussian", "jinc"], f"Kernel \"{kernel}\" is not in supported"
     
     phase_matrix = np.zeros((ssp_dim, domain_dim))
-    if kernel == "jinc":
+    if kernel == "sinc":
         phase_samples = rng.uniform(-1, 1, size=((ssp_dim - 1)//2, domain_dim))
     elif kernel == "gaussian":
         phase_samples = rng.normal(0, 1, size=((ssp_dim - 1)//2, domain_dim))
@@ -208,7 +208,7 @@ def RandomSSPSpace(domain_dim:int, ssp_dim:int,
 
 def JointSSPSpace(domain_dim:int, ssp_dim:int,
                   length_scale:Optional[Union[int, np.ndarray]]=1,
-                  rng=np.random.default_rng(), kernel="sinc"):
+                  rng=np.random.default_rng(), kernel="hypergeom"):
     assert kernel in ["jinc", "gaussian", "hypergeom"], f"Kernel \"{kernel}\" is not in supported"
 
     dir_matrix = rng.normal(0, 1, size=((ssp_dim - 1) // 2, domain_dim))
@@ -233,10 +233,10 @@ def JointSSPSpace(domain_dim:int, ssp_dim:int,
 def CyclicSSPSpace(domain_dim:int, ssp_dim:int, period:float,
                    band_scale:Optional[Union[int, np.ndarray]]=1,
                    rng=np.random.default_rng(), kernel="sinc"):
-    assert kernel in ["jinc", "gaussian", "hypergeom"], f"Kernel \"{kernel}\" is not in supported"
+    assert kernel in ["sinc", "gaussian", "jinc"], f"Kernel \"{kernel}\" is not in supported"
     
     phase_matrix = np.zeros((ssp_dim, domain_dim))
-    if kernel == "jinc":
+    if kernel == "sinc":
         scales = rng.uniform(-1, 1, size=((ssp_dim - 1) // 2, domain_dim))
     elif kernel == "gaussian":
         scales = rng.normal(0, 1, size=((ssp_dim - 1) // 2, domain_dim))

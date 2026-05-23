@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional, Sequence, SupportsFloat, Tuple, Type, Union
 
 import numpy as np
+from scipy.stats import semicircular, chi, special_ortho_group
 from .ssp import SSP
 from .util import make_good_unitary, conjugate_symmetry, vecs_from_phases
 
@@ -11,20 +12,20 @@ def k_to_vector(K):
 
 
 class DiscreteSPSpace:
-    def __init__(self, keys, ssp_dim, optimize=False, mul=1):
+    def __init__(self, keys, ssp_dim, optimal_phis=False):
+        self.ssp_dim = ssp_dim 
+        self.length_scale = np.array([1])
         self.keys = keys
-        if not optimize:
-            self.ssp_dim = ssp_dim
-            self.map = SSP([make_good_unitary(ssp_dim, mul=1) for k in self.keys])
-        else:
-            self.ssp_dim = ssp_dim + 2
-            self.map = SSP(np.zeros((len(self.keys), self.ssp_dim)))
+#         self.map = SSP([make_good_unitary(ssp_dim) for k in self.keys])
 
-            phase0 = np.random.uniform(low=-np.pi, high=np.pi, 
-                                       size=(1, (self.ssp_dim-2)//2))
+        self.map = SSP(np.zeros((len(self.keys), self.ssp_dim)))
 
-            self.map[0,:] = k_to_vector(phase0)
-            
+        phase0 = np.random.uniform(low=-np.pi, high=np.pi, 
+                                   size=(1, (self.ssp_dim-2)//2))
+
+        self.map[0,:] = k_to_vector(phase0)
+       
+        if optimal_phis:
             def greedy_min_func(x, vecs):
                 K = x.reshape((1,vecs.shape[1]//2 - 1))
                 phi = k_to_vector(K)    
@@ -32,7 +33,7 @@ class DiscreteSPSpace:
                 return np.linalg.norm(sims)
 
             from scipy.optimize import minimize
-           
+       
             for i in range(1,len(self.keys)):
                 x0 = np.random.uniform(low=-np.pi, 
                                        high=np.pi, 
@@ -41,20 +42,21 @@ class DiscreteSPSpace:
                                        args=(self.map[:i,:]), 
                                        method='L-BFGS-B')
                 self.map[i,:] = k_to_vector(greedy_soln.x.reshape((1,(self.ssp_dim-2)//2)))
-            ### end for
-        ### end if
+        else:
+            for i in range(1, len(self.keys)):
+                phase0 = np.random.uniform(low=-np.pi, high=np.pi, 
+                                   size=(1, (self.ssp_dim-2)//2))
+                self.map[i,:] = k_to_vector(phase0)
     ### end __init__
 
-    def from_codebook(self, codebook):
-        self.ssp_dim = codebook.shape[1]
-        self.map = codebook
-        self.keys = list(range(codebook.shape[0]))
 
-
-    def encode(self, v):
-        if v not in self.keys:
-            raise RuntimeWarning(f'Key {v} is not in the dictionary')
-        return self.map[self.keys.index(v),:].reshape((1,-1))
+    def encode(self, vals):
+        retval = np.zeros((len(vals), self.ssp_dim))
+        for v_idx, v in enumerate(vals): 
+            if v not in self.keys:
+                raise RuntimeWarning(f'Key {v} is not in the dictionary')
+            retval[v_idx,:] = self.map[self.keys.index(v),:].reshape((1,-1))
+        return SSP(retval)
 
     def decode(self, ssp):
         return self.keys[np.argmax(self.map | ssp)]
@@ -115,8 +117,37 @@ class SSPEncoder:
         ls_mat = np.atleast_2d(np.diag(1/self.length_scale.flatten()))
         assert ls_mat.shape == (self.domain_dim, self.domain_dim), f'Expected Len Scale mat with dimensions {(self.domain_dim, self.domain_dim)}, got {ls_mat.shape}'
         scaled_x = x @ ls_mat
+        # TODO: add conditional debugging catch for non-zero imaginary components of the data.
         data = np.fft.ifft( np.exp( 1.j * self.phase_matrix @ scaled_x.T), axis=0 ).real
         return SSP(data.T)
+
+    def gradient(self, phi):
+        '''
+        Returns the gradient of an encoded SSP.  
+
+        Parameters:
+        -----------
+
+        phi : SSP
+            An SSP object representing a single SSP. i.e., has shape (1, ssp_dim)
+
+        Returns:
+        --------
+
+        grad : np.array
+
+            A (domain_dim, ssp_dim) np.array that represents the gradient of the encoding at the encoded value.
+
+        '''
+
+        phi_fourier = np.fft.fft(phi, axis=1)
+        ls_mat = np.atleast_2d(np.diag(1 / self.length_scale.flatten()))
+        # d/dx[e^iAx] = hadamard(iA, e^{iAx})
+        deriv_mat = 1.j * (self.phase_matrix @ ls_mat) # Derivative coeff
+
+        fourier_grad = np.einsum('dm,d->md',deriv_mat,phi_fourier.flatten())
+        return np.fft.ifft(fourier_grad, axis=1).real
+
     
     def encode_and_deriv(self,x):
         '''
@@ -159,46 +190,93 @@ class SSPEncoder:
 # Make Encoder Matrices
 def RandomSSPSpace(domain_dim:int, ssp_dim:int, 
                    length_scale:Optional[Union[int, np.ndarray]]=1, 
-                   rng=np.random.default_rng()):
-
-    axis_matrix = np.zeros((ssp_dim,domain_dim))
-    for i in range(domain_dim):
-        axis_matrix[:,i] = make_good_unitary(ssp_dim)
-
-    phase_matrix = (-1.j*np.log(np.fft.fft(axis_matrix,axis=0))).real
+                   rng=np.random.default_rng(), kernel="sinc"):
+    assert kernel in ["sinc", "gaussian", "jinc"], f"Kernel \"{kernel}\" is not in supported"
+    
+    phase_matrix = np.zeros((ssp_dim, domain_dim))
+    if kernel == "sinc":
+        phase_samples = rng.uniform(-1, 1, size=((ssp_dim - 1)//2, domain_dim))
+    elif kernel == "gaussian":
+        phase_samples = rng.normal(0, 1, size=((ssp_dim - 1)//2, domain_dim))
+    else:
+        phase_samples = semicircular.rvs(0, 1, size=((ssp_dim - 1)//2, domain_dim))
+    
+    phase_matrix[1:(ssp_dim + 1) // 2,:] = phase_samples
+    phase_matrix[-1:ssp_dim // 2:-1] = -phase_matrix[1:(ssp_dim + 1) // 2,:]
     
     return SSPEncoder(phase_matrix, length_scale=length_scale)
 
+def JointSSPSpace(domain_dim:int, ssp_dim:int,
+                  length_scale:Optional[Union[int, np.ndarray]]=1,
+                  rng=np.random.default_rng(), kernel="hypergeom"):
+    assert kernel in ["jinc", "gaussian", "hypergeom"], f"Kernel \"{kernel}\" is not in supported"
+
+    dir_matrix = rng.normal(0, 1, size=((ssp_dim - 1) // 2, domain_dim))
+    dir_matrix /= np.linalg.norm(dir_matrix, axis=1)[:,np.newaxis]
+
+    phase_matrix = np.zeros((ssp_dim, domain_dim))
+    
+    scales = rng.uniform(0, 1, size=((ssp_dim - 1) // 2, 1))
+    if kernel == "jinc":
+        scales = scales ** (1 / domain_dim)
+    elif kernel == "gaussian":
+        scales = chi.ppf(scales, df=domain_dim, loc=0, scale=1)
+    else:
+        pass
+    
+    phase_matrix[1:(ssp_dim + 1) // 2,:] = dir_matrix * scales
+    phase_matrix[-1:ssp_dim // 2:-1] = -phase_matrix[1:(ssp_dim + 1) // 2,:]
+
+    return SSPEncoder(phase_matrix, length_scale=length_scale)
+
+
+def CyclicSSPSpace(domain_dim:int, ssp_dim:int, period:float,
+                   band_scale:Optional[Union[int, np.ndarray]]=1,
+                   rng=np.random.default_rng(), kernel="sinc"):
+    assert kernel in ["sinc", "gaussian", "jinc"], f"Kernel \"{kernel}\" is not in supported"
+    
+    phase_matrix = np.zeros((ssp_dim, domain_dim))
+    if kernel == "sinc":
+        scales = rng.uniform(-1, 1, size=((ssp_dim - 1) // 2, domain_dim))
+    elif kernel == "gaussian":
+        scales = rng.normal(0, 1, size=((ssp_dim - 1) // 2, domain_dim))
+    else:
+        scales = semicircular.rvs(0, 1, size=((ssp_dim - 1) // 2, domain_dim))
+    
+    scales = (period / band_scale) * scales
+    int_scales = ((2 * np.pi) / period) * np.floor(scales)
+
+    phase_matrix[1:(ssp_dim + 1) // 2,:] = int_scales
+    phase_matrix[-1:ssp_dim // 2:-1] = -phase_matrix[1:(ssp_dim + 1) // 2,:]
+
+    return SSPEncoder(phase_matrix, length_scale=1)
 
 def HexagonalSSPSpace(domain_dim:int, 
                       n_rotates:int=5, 
                       n_scales:int=5, 
-                      scale_min:float=0.1, 
-                      scale_max:float=3,
-                      length_scale:Optional[Union[int, np.ndarray]]=1):
+                      kernel="hypergeom",
+                      length_scale:Optional[Union[int, np.ndarray]]=1,
+                      even=False):
     '''
     Creates an SSP space using the Hexagonal Tiling developed by NS Dumont 
     (2020)
     '''
+    assert kernel in ["jinc", "gaussian", "hypergeom"], f"Kernel \"{kernel}\" is not in supported"
     phases_hex = np.hstack([np.sqrt(1+ 1/domain_dim)*np.identity(domain_dim) - (domain_dim**(-3/2))*(np.sqrt(domain_dim+1) + 1),
                          (domain_dim**(-1/2))*np.ones((domain_dim,1))]).T
-        
-    grid_basis_dim = domain_dim + 1
-    num_grids = n_rotates*n_scales
-    scale_min = scale_min
-    scale_max = scale_max
-    n_scales = n_scales
-    n_rotates = n_rotates
-        
-    #scales = scale_max*(np.linspace((scale_min/scale_max)**2,1,n_scales))**(1/domain_dim)
-    scales = np.linspace(scale_min,scale_max,n_scales)
+
+    scales = np.linspace(0, 1, (n_scales if domain_dim != 1 else n_scales + n_rotates) + 1, endpoint=False)[1:]
+    
+    if kernel == "jinc":
+        scales = scales ** (1/domain_dim)
+    elif kernel == "gaussian":
+        scales = chi.ppf(scales, df=domain_dim, loc=0, scale=1)
+    else:
+        pass 
     phases_scaled = np.vstack([phases_hex*i for i in scales])
-        
-    if (n_rotates==1):
+
+    if (n_rotates == 1 or domain_dim == 1):
         phases_scaled_rotated = phases_scaled
-    elif (domain_dim==1):
-        scales = np.linspace(scale_min,scale_max,n_scales+n_rotates)
-        phases_scaled_rotated = np.vstack([phases_hex*i for i in scales])
     elif (domain_dim == 2):
         angles = np.linspace(0,2*np.pi/3,n_rotates,endpoint=False)
         R_mats = np.stack([np.stack([np.cos(angles), -np.sin(angles)],axis=1),
@@ -208,7 +286,7 @@ def HexagonalSSPSpace(domain_dim:int,
         R_mats = special_ortho_group.rvs(domain_dim, size=n_rotates, random_state=1)
         phases_scaled_rotated = (R_mats @ phases_scaled.T).transpose(0,2,1).reshape(-1,domain_dim)
         
-    phase_matrix = conjugate_symmetry(phases_scaled_rotated)
+    phase_matrix = conjugate_symmetry(phases_scaled_rotated, even=even)
 
     return SSPEncoder(phase_matrix, length_scale=length_scale)
 

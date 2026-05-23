@@ -1,5 +1,6 @@
 import numpy as np
 
+from scipy.special import gamma, jv
 from scipy.stats import qmc
 
 def sample_domain(bounds, num_samples):
@@ -77,3 +78,35 @@ def similarity_plot(self,ssp,n_grid=100,plot_type='heatmap',ax=None,**kwargs):
     else:
         raise NotImplementedError()
     return im
+
+def joint_kernel(x, n, kernel="hypergeom", length_scale=1):
+    # --------------------------------------------------
+    # See "Neurally-plausible radial basis kernels 
+    #      using distributed Fourier embeddings" for
+    #      an explanation of kernel formations.
+    # --------------------------------------------------
+    # Available here: https://arxiv.org/abs/2605.08458
+    # --------------------------------------------------
+    # x: N x n -> N x 1
+    x = (np.linalg.norm(np.atleast_2d(x), axis=1) / length_scale)[:,np.newaxis]
+
+    # Gaussian is consistent for all dimensionalities
+    if kernel=="gaussian":
+        return np.exp(-(x**2)/2)
+
+    # The 1-D case is identical for hypergeom and jinc
+    if n == 1:
+        return np.sinc(x/np.pi)
+    else:
+        # Approximate the kernels using a trapezoidal
+        # integration of the generic formulation
+        R = np.linspace(0, 1, 100, endpoint=True)[:,np.newaxis]
+        if kernel=="jinc":
+            px = (n * (R ** (n - 1)))
+        else:
+            px = np.ones_like(R)
+        return np.trapezoid(y=gamma(n/2) * 
+                              ((2 / (x @ R.T + 1e-6)) ** ((n/2) - 1)) *
+                              jv((n/2) - 1, x @ R.T) *
+                              px.T,
+                              x=R[:,0], axis=1)[:,np.newaxis]

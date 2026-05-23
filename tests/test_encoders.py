@@ -1,7 +1,7 @@
 import sys
 sys.path.append('../')
 
-from sspspace import SSP, SSPEncoder, RandomSSPSpace, HexagonalSSPSpace 
+from sspspace import SSP, SSPEncoder, RandomSSPSpace, HexagonalSSPSpace, joint_kernel
 import numpy as np
 
 
@@ -23,18 +23,31 @@ def test_hexagonal_encoding():
     xs = np.linspace(-2,2,100).reshape((-1,1))
     ys = np.linspace(-2,2,100).reshape((-1,1))
 
-    X, Y = np.meshgrid(xs, ys)
-    xys = np.vstack((X.flatten(), Y.flatten())).T
-    hex_encoder = HexagonalSSPSpace(domain_dim=2, n_rotates=1, n_scales=1)
-    hex_encoder.update_lengthscale(0.01)
+    for n in [1, 2]:
+        for k, ls in zip(["hypergeom", "jinc", "gaussian"],
+                        [0.2, 0.2, 0.5]):
+            
+            hex_encoder = HexagonalSSPSpace(domain_dim=n, n_rotates=17, n_scales=17, kernel=k)
+            hex_encoder.update_lengthscale(ls)
 
-    query_xys_ssp = hex_encoder.encode(xys)
-    origin_ssp = hex_encoder.encode([[0,0]])
+            if n==1:
+                xys = xs
+            else:
+                X, Y = np.meshgrid(xs, ys)
+                xys = np.vstack((X.flatten(), Y.flatten())).T    
 
-    sims = query_xys_ssp | origin_ssp
-    square_sims = sims.reshape((ys.shape[0], xs.shape[0]))
+            query_xys_ssp = hex_encoder.encode(xys)
+            origin_ssp = hex_encoder.encode(np.zeros((1,n)))
 
-    # TODO: Figure out numerical comparison
+            sims = query_xys_ssp | origin_ssp
+            ker_sims = joint_kernel(x=xys, n=n, kernel=k, length_scale=ls)
+
+            try:
+                assert np.allclose(sims, ker_sims, atol=5e-2)
+            except AssertionError:
+                print(f"Hexagonal SSP Encoding Error: Absolute difference between ground truth and induced kernel too large\nKernel: {k}\nDiff: {np.abs(sims - ker_sims).max()}")
+                continue
+            # print(f"PASS: Kernel: {k}, Domain Dimensionality: {n}, Length-scale: {ls}")
 
 def test_rand_gradient():
 
@@ -95,6 +108,7 @@ def test_hex_gradient():
 if __name__=='__main__':
     test_rand_gradient()
     test_hex_gradient()
+    test_hexagonal_encoding()
 
 #     import matplotlib.pyplot as plt
 #     plt.imshow(square_sims)

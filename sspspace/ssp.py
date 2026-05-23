@@ -42,7 +42,7 @@ def fourier_log(ssp):
     '''
     Computes the log of the Fourier representation 
     '''
-    return np.ifft(np.log(np.fft(ssp.v, axis=1)), axis=1)
+    return np.fft.ifft(np.log(np.fft.fft(ssp.v, axis=1)), axis=1)
 
 class SSP:
     def __init__(self, input_array):

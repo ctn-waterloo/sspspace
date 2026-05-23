@@ -7,7 +7,7 @@ import numpy as np
 
 def test_random_encoding():
     xs = np.linspace(-10,10,1000).reshape((-1,1))
-    rand_encoder = RandomSSPSpace(domain_dim=1,ssp_dim=1024*2)
+    rand_encoder = RandomSSPSpace(domain_dim=1,length_scale=1/np.pi,ssp_dim=2048)
 
     query_xs_ssp = rand_encoder.encode(xs)
     origin_ssp = rand_encoder.encode([[0]])

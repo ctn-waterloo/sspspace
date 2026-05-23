@@ -93,6 +93,9 @@ class SSPEncoder:
         
         self.phase_matrix = phase_matrix
 
+    def get_state(self):
+        return {'phase_matrix':self.phase_matrix, 'length_scale':self.length_scale}
+
     def update_lengthscale(self, scale):
         '''
         Changes the lengthscale being used in the encoding.

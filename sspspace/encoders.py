@@ -93,7 +93,7 @@ class SSPEncoder:
         
         self.phase_matrix = phase_matrix
 
-    def get_state(self):
+    def get_params(self):
         return {'phase_matrix':self.phase_matrix, 'length_scale':self.length_scale}
 
     def update_lengthscale(self, scale):

@@ -1,7 +1,7 @@
 import sys
 sys.path.append('../')
 
-from sspspace import SSP, SSPSpace, RandomSSPSpace
+from sspspace import SSP, RandomSSPSpace
 import numpy as np
 
 def test_ssp():

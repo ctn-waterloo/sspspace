@@ -5,6 +5,8 @@ from scipy.stats import semicircular, chi, special_ortho_group
 from .ssp import SSP
 from .util import make_good_unitary, conjugate_symmetry, vecs_from_phases
 
+import copy
+
 def k_to_vector(K):
     fs = vecs_from_phases(K.T).T
     phis = np.fft.ifft(fs, axis=1).real
@@ -12,20 +14,26 @@ def k_to_vector(K):
 
 
 class DiscreteSPSpace:
-    def __init__(self, keys, ssp_dim, optimal_phis=False):
+    def __init__(self, keys, ssp_dim, optimize_phis=False):
         self.ssp_dim = ssp_dim 
         self.length_scale = np.array([1])
         self.keys = keys
 #         self.map = SSP([make_good_unitary(ssp_dim) for k in self.keys])
 
-        self.map = SSP(np.zeros((len(self.keys), self.ssp_dim)))
+        self.map = []#SSP(np.zeros((len(self.keys), self.ssp_dim)))
 
         phase0 = np.random.uniform(low=-np.pi, high=np.pi, 
                                    size=(1, (self.ssp_dim-2)//2))
 
-        self.map[0,:] = k_to_vector(phase0)
-       
-        if optimal_phis:
+        self.map.append(SSP(k_to_vector(phase0)))
+
+        if not optimize_phis:
+            for i in range(1,len(self.keys)):
+                p0 = np.random.uniform(low=-np.pi, high=np.pi, 
+                                   size=(1, (self.ssp_dim-2)//2))
+                self.map.append(SSP(k_to_vector(p0)))
+        else:
+            
             def greedy_min_func(x, vecs):
                 K = x.reshape((1,vecs.shape[1]//2 - 1))
                 phi = k_to_vector(K)    
@@ -41,25 +49,25 @@ class DiscreteSPSpace:
                 greedy_soln = minimize(greedy_min_func, x0, 
                                        args=(self.map[:i,:]), 
                                        method='L-BFGS-B')
-                self.map[i,:] = k_to_vector(greedy_soln.x.reshape((1,(self.ssp_dim-2)//2)))
-        else:
-            for i in range(1, len(self.keys)):
-                phase0 = np.random.uniform(low=-np.pi, high=np.pi, 
-                                   size=(1, (self.ssp_dim-2)//2))
-                self.map[i,:] = k_to_vector(phase0)
+                self.map.append(SSP(k_to_vector(greedy_soln.x.reshape((1,(self.ssp_dim-2)//2)))))
     ### end __init__
 
 
     def encode(self, vals):
-        retval = np.zeros((len(vals), self.ssp_dim))
-        for v_idx, v in enumerate(vals): 
-            if v not in self.keys:
-                raise RuntimeWarning(f'Key {v} is not in the dictionary')
-            retval[v_idx,:] = self.map[self.keys.index(v),:].reshape((1,-1))
-        return SSP(retval)
+        if hasattr(vals, '__len__'):
+            retval = np.zeros((len(vals), self.ssp_dim))
+            for v_idx, v in enumerate(vals): 
+                if v not in self.keys:
+                    raise RuntimeWarning(f'Key {v} is not in the dictionary')
+                retval[v_idx,:] = self.map[self.keys.index(v)].v.reshape((1,-1))
+            return SSP(retval)
+        else:
+            val_idx = self.keys.index(vals)
+            return self.map[val_idx]
 
     def decode(self, ssp):
-        return self.keys[np.argmax(self.map | ssp)]
+        sims = [m | ssp for m in self.map]
+        return self.keys[np.argmax(sims)]
 
         
 class SSPEncoder:
@@ -140,7 +148,7 @@ class SSPEncoder:
 
         '''
 
-        phi_fourier = np.fft.fft(phi, axis=1)
+        phi_fourier = np.fft.fft(phi.v, axis=1)
         ls_mat = np.atleast_2d(np.diag(1 / self.length_scale.flatten()))
         # d/dx[e^iAx] = hadamard(iA, e^{iAx})
         deriv_mat = 1.j * (self.phase_matrix @ ls_mat) # Derivative coeff
@@ -289,4 +297,3 @@ def HexagonalSSPSpace(domain_dim:int,
     phase_matrix = conjugate_symmetry(phases_scaled_rotated, even=even)
 
     return SSPEncoder(phase_matrix, length_scale=length_scale)
-

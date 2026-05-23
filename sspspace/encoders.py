@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional, Sequence, SupportsFloat, Tuple, Type, Union
 
 import numpy as np
-from scipy.stats import semicircular, chi
+from scipy.stats import semicircular, chi, special_ortho_group
 from .ssp import SSP
 from .util import make_good_unitary, conjugate_symmetry, vecs_from_phases
 
@@ -208,8 +208,8 @@ def RandomSSPSpace(domain_dim:int, ssp_dim:int,
 
 def JointSSPSpace(domain_dim:int, ssp_dim:int,
                   length_scale:Optional[Union[int, np.ndarray]]=1,
-                  rng=np.random.default_rng(), kernel="sinc"):
-    assert kernel in ["sinc", "gaussian", "jinc"], f"Kernel \"{kernel}\" is not in supported"
+                  rng=np.random.default_rng(), kernel="hypergeom"):
+    assert kernel in ["jinc", "gaussian", "hypergeom"], f"Kernel \"{kernel}\" is not in supported"
 
     dir_matrix = rng.normal(0, 1, size=((ssp_dim - 1) // 2, domain_dim))
     dir_matrix /= np.linalg.norm(dir_matrix, axis=1)[:,np.newaxis]
@@ -217,7 +217,7 @@ def JointSSPSpace(domain_dim:int, ssp_dim:int,
     phase_matrix = np.zeros((ssp_dim, domain_dim))
     
     scales = rng.uniform(0, 1, size=((ssp_dim - 1) // 2, 1))
-    if kernel == "sinc":
+    if kernel == "jinc":
         scales = scales ** (1 / domain_dim)
     elif kernel == "gaussian":
         scales = chi.ppf(scales, df=domain_dim, loc=0, scale=1)
@@ -254,19 +254,20 @@ def CyclicSSPSpace(domain_dim:int, ssp_dim:int, period:float,
 def HexagonalSSPSpace(domain_dim:int, 
                       n_rotates:int=5, 
                       n_scales:int=5, 
-                      kernel="jinc",
-                      length_scale:Optional[Union[int, np.ndarray]]=1):
+                      kernel="hypergeom",
+                      length_scale:Optional[Union[int, np.ndarray]]=1,
+                      even=False):
     '''
     Creates an SSP space using the Hexagonal Tiling developed by NS Dumont 
     (2020)
     '''
-    assert kernel in ["sinc", "gaussian", "jinc"], f"Kernel \"{kernel}\" is not in supported"
+    assert kernel in ["jinc", "gaussian", "hypergeom"], f"Kernel \"{kernel}\" is not in supported"
     phases_hex = np.hstack([np.sqrt(1+ 1/domain_dim)*np.identity(domain_dim) - (domain_dim**(-3/2))*(np.sqrt(domain_dim+1) + 1),
                          (domain_dim**(-1/2))*np.ones((domain_dim,1))]).T
 
     scales = np.linspace(0, 1, (n_scales if domain_dim != 1 else n_scales + n_rotates) + 1, endpoint=False)[1:]
     
-    if kernel == "sinc":
+    if kernel == "jinc":
         scales = scales ** (1/domain_dim)
     elif kernel == "gaussian":
         scales = chi.ppf(scales, df=domain_dim, loc=0, scale=1)
@@ -285,7 +286,7 @@ def HexagonalSSPSpace(domain_dim:int,
         R_mats = special_ortho_group.rvs(domain_dim, size=n_rotates, random_state=1)
         phases_scaled_rotated = (R_mats @ phases_scaled.T).transpose(0,2,1).reshape(-1,domain_dim)
         
-    phase_matrix = conjugate_symmetry(phases_scaled_rotated)
+    phase_matrix = conjugate_symmetry(phases_scaled_rotated, even=even)
 
     return SSPEncoder(phase_matrix, length_scale=length_scale)
 
